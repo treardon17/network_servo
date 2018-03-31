@@ -1,0 +1,16 @@
+{
+  "name": "network_gpio",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "i2c-bus": "^3.1.0",
+    "mac-scanner": "^1.1.0",
+    "pca9685": "^4.0.3"
+  }
+}
