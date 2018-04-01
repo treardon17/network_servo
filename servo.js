@@ -82,7 +82,7 @@ class Servo {
   }
 
   setAngle(angle) {
-    const endPos = (angle / 180) * this.maxRange
+    const endPos = ((angle / 180) * (this.maxRange - this.minRange)) + this.minRange
     this.pos(endPos)
   }
 }
