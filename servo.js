@@ -10,16 +10,18 @@ class Servo {
       debug: false
     }
     this.channel = channel
-    this.maxRange = 500
-    this.minRange = 0
-    this.prevRange = this.minRange
+    this.maxRange = 2500
+    this.minRange = 500
+    this.currentPos = this.minRange
     this.onReady = onReady
     this.pwm = new Pca9685Driver(this.options, this.onInit.bind(this))
+
+    this.instructionQueue = []
+    this.servoActive = false
   }
 
   onInit(err) {
-    this.pwm.setPulseLength(this.channel, 450)
-    this.setRange({ start: this.minRange, end: this.minRange }).then(() => {
+    this.pos(this.minRange).then(() => {
       if (typeof this.onReady === 'function') { this.onReady({ success: true }) }
     }).catch((err) => {
       if (typeof this.onReady === 'function') {
@@ -28,37 +30,60 @@ class Servo {
     })
   }
 
-  setRange({ start, end }) {
+  getServoTimeToPos(pos) {
+    const distance = Math.abs(this.currentPos - pos)
+    return distance * 5
+  }
+
+  addInstruction({ instruction, run }) {
+    if (typeof instruction === 'function') {
+      this.instructionQueue.push(instruction)
+    }
+    if (run) {
+      this.runInstructionIfNeeded()
+    }
+  }
+
+  runInstructionIfNeeded() {
+    if (this.instructionQueue.length > 0 && !this.servoActive) {
+      console.log('instruction count: ', this.instructionQueue.length)
+      this.servoActive = true
+      this.instructionQueue.shift()().then(() => {
+        this.servoActive = false
+        this.runInstructionIfNeeded()
+      })
+    }
+  }
+
+  pos(pos) {
     return new Promise((resolve, reject) => {
-      if (this.pwm) {
-        let startRange = start || this.prevRange
-        if (startRange < this.minRange) { startRange = this.minRange }
-
-        const endRange = (end > this.maxRange ? this.maxRange : end)
-        this.prevRange = endRange
-
-        // Set channel 0 to turn on on step 42 and off on step 255
-        // (with optional callback)
-        this.pwm.setPulseRange(this.channel, startRange, endRange, (err) => {
-          if (err) { reject(err) }
-          else {
-            setTimeout(() => {
-              resolve()
-            }, 2000)
-          }
-        })
-      } else {
-        reject()
-      }
+      const instruction = () => this.setPos(pos).then(resolve).catch(reject)
+      this.addInstruction({ instruction, run: true })
     })
   }
 
-  setAngle({ start, end }) {
+  setPos(pos) {
     return new Promise((resolve, reject) => {
-      const startRange = ((start || this.prevRange) / 180) * 500
-      const endRange = (end / 180) * 500
-      this.setRange({ start: startRange, end: endRange }).then(resolve).catch(reject)
+      if (this.pwm) {
+        let finalPos = pos
+        if (pos == 0) { finalPos = 0 }
+        else if (!pos) { finalPos = startRange }
+        else if (pos > this.maxRange) { finalPos = this.maxRange }
+        else if (pos < this.minRange) { finalPos = this.minRange }
+        
+        console.log('setting pos', finalPos)
+        this.pwm.setPulseLength(this.channel, finalPos)
+        setTimeout(resolve, this.getServoTimeToPos(finalPos))
+
+        // Keep track of our current position
+        this.currentPos = finalPos
+      } else { reject() }
     })
+  }
+
+  setAngle(angle) {
+    const endPos = (angle / 180) * this.maxRange
+    this.pos(endPos)
   }
 }
 
