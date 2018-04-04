@@ -46,7 +46,7 @@ class Servo {
 
   runInstructionIfNeeded() {
     if (this.instructionQueue.length > 0 && !this.servoActive) {
-      console.log('instruction count: ', this.instructionQueue.length)
+      // console.log('instruction count: ', this.instructionQueue.length)
       this.servoActive = true
       this.instructionQueue.shift()().then(() => {
         this.servoActive = false
@@ -71,7 +71,7 @@ class Servo {
         else if (pos > this.maxRange) { finalPos = this.maxRange }
         else if (pos < this.minRange) { finalPos = this.minRange }
         
-        console.log('setting pos', finalPos)
+        // console.log('setting pos', finalPos)
         this.pwm.setPulseLength(this.channel, finalPos)
         setTimeout(resolve, this.getServoTimeToPos(finalPos))
 
