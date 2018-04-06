@@ -7,7 +7,7 @@ class Client {
     this.servoID = servoID
     this.connected = false
     this.disconnectCount = 0
-    this.disconnectThreshold = 30
+    this.disconnectThreshold = 15
     this.setupServo()
   }
 
@@ -32,18 +32,19 @@ class Client {
   }
 
   onEnter() {
+    console.log('entered', this.mac)
     this.connected = true
     this.disconnectCount = 0
     this.servo.setAngle(180)
   }
 
   onLeave() {
+    console.log('left', this.mac)
     this.connected = false
     this.servo.setAngle(0)
   }
 
   onNetwork() {
-    console.log('on network', this.mac)
     this.disconnectCount = 0
     if (!this.connected) {
       this.onEnter()
@@ -51,7 +52,6 @@ class Client {
   }
 
   offNetwork() {
-    console.log('off network', this.mac)
     this.disconnectCount += 1
     if (this.disconnectCount >= this.disconnectThreshold) {
       this.onLeave()

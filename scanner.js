@@ -1,5 +1,5 @@
-const ArpScan = require('arpscan')
 const Util = require('./util')
+const Shell = require('shelljs')
 
 class Scanner {
   constructor() {
@@ -37,11 +37,31 @@ class Scanner {
     return Util.arrayUnique([...enter, ...leave, ...onNetwork, ...offNetwork])
   }
 
+  getNetworkMap() {
+    return new Promise((resolve) => {
+      const arp = Shell.exec('arp', { silent: true })
+      let items = arp.split('\n')
+      items = items.slice(1, items.length - 1)
+      const networkDevices = []
+      items.forEach((item) => {
+        const itemAttrs = item.split(/\s\s+/g)
+        if (itemAttrs.length > 2) {
+          const networkItem = {
+            ip: itemAttrs[0],
+            type: itemAttrs[1],
+            mac: itemAttrs[2].toUpperCase()
+          }
+          networkDevices.push(networkItem)
+        }
+      })
+      resolve(networkDevices)
+    })
+  }
+
   scanNetwork() {
     return new Promise((resolve, reject) => {
-      ArpScan((err, data) => {
-        if (err || !data) { reject(err) }
-        const currentDevices = data.map(device => device.mac.toUpperCase())
+      this.getNetworkMap().then((devices) => {
+        const currentDevices = devices.map(device => device.mac)
         const expiredDevices = Util.arrayDifference({ array1: this.devicesOnNetwork, array2: currentDevices })
         const newDevices = Util.arrayDifference({ array1: currentDevices, array2: this.devicesOnNetwork })
         const expiredListening = Util.arrayDifference({ array1: this.listeningIDs, array2: currentDevices })
@@ -104,11 +124,13 @@ class Scanner {
 
   // EVENTS
   deviceOnNetwork(event) {
+    console.log('on network: ', event.mac)
     const callback = this.onNetworkListeners[event.mac]
     if (typeof callback === 'function') { callback(event) }
   }
 
   deviceOffNetwork(event) {
+    console.log('off network: ', event.mac)
     const callback = this.offNetworkListeners[event.mac]
     if (typeof callback === 'function') { callback(event) }
   }

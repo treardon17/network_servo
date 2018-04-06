@@ -1,3 +1,2 @@
 # To Run:
-1. sudo apt-get install arp-scan
-2. npm install
+1. npm install

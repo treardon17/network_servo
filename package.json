@@ -9,8 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "arpscan": "^0.6.0",
     "i2c-bus": "^3.1.0",
-    "pca9685": "^4.0.3"
+    "pca9685": "^4.0.3",
+    "shelljs": "^0.8.1"
   }
 }
