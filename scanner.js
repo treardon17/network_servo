@@ -1,5 +1,6 @@
 const Util = require('./util')
 const Shell = require('shelljs')
+const xmltojs = require('xml2js')
 
 class Scanner {
   constructor() {
@@ -18,7 +19,6 @@ class Scanner {
     this.offNetworkListeners = {}
     this.scanInterval = 5000
     this.scanIntervalID = null
-    this.refreshNetwork()
   }
 
   start() {
@@ -39,22 +39,23 @@ class Scanner {
 
   getNetworkMap() {
     return new Promise((resolve) => {
-      const arp = Shell.exec('arp', { silent: true })
-      let items = arp.split('\n')
-      items = items.slice(1, items.length - 1)
-      const networkDevices = []
-      items.forEach((item) => {
-        const itemAttrs = item.split(/\s\s+/g)
-        if (itemAttrs.length > 2) {
-          const networkItem = {
-            ip: itemAttrs[0],
-            type: itemAttrs[1],
-            mac: itemAttrs[2].toUpperCase()
+      const xml = Shell.exec('sudo nmap 192.168.0.0/24 -sP -oX -', { silent: true })
+      xmltojs.parseString(xml, (err, result) => {
+        const hosts = []
+        result.nmaprun.host.forEach((host) => {
+          const hostObj = {}
+          host.address.forEach((address) => {
+            hostObj[address.$.addrtype] = address.$.addr
+            if (address.$.vendor != null) {
+              hostObj.vendor = address.$.vendor
+            } 
+          })
+          if (hostObj.mac !== undefined) {
+            hosts.push(hostObj)
           }
-          networkDevices.push(networkItem)
-        }
-      })
-      resolve(networkDevices)
+        })
+        resolve(hosts)
+      });
     })
   }
 
@@ -71,13 +72,19 @@ class Scanner {
   }
 
   refreshNetwork(loop) {
+    console.log('refreshing network', loop)
     this.scanNetwork().then((data) => {
+      console.log('refresh finished')
       // console.log(data)
       this.devicesOnNetwork = data.current
       this.notify({ macs: data.new, eventName: 'deviceEntered' })
       this.notify({ macs: data.expired, eventName: 'deviceLeft' })
       this.notify({ macs: data.current, eventName: 'deviceOnNetwork' })
       this.notify({ macs: data.expiredListening, eventName: 'deviceOffNetwork' })
+      console.log('new', data.new)
+      console.log('expired', data.expired)
+      console.log('current', data.current)
+      console.log('expired listening', data.expiredListening)
       if (loop) {
         this.scanIntervalID = setTimeout(this.refreshNetwork.bind(this, true), this.scanInterval)
       }
@@ -124,19 +131,17 @@ class Scanner {
 
   // EVENTS
   deviceOnNetwork(event) {
-    console.log('on network: ', event.mac)
     const callback = this.onNetworkListeners[event.mac]
     if (typeof callback === 'function') { callback(event) }
   }
 
   deviceOffNetwork(event) {
-    console.log('off network: ', event.mac)
     const callback = this.offNetworkListeners[event.mac]
     if (typeof callback === 'function') { callback(event) }
   }
 
   deviceEntered(event) {
-    console.log('entered:', event.mac)
+    // console.log('entered:', event.mac)
     const callback = this.enterListeners[event.mac]
     if (typeof callback === 'function') { callback(event) }
   }
